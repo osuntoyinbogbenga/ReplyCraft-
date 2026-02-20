@@ -79,7 +79,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     const userImage = selectedImage;
     setInputValue('');
     setSelectedImage(null);
-    setSending(true);
+    setSending(true); // MODIFY: Set loading state immediately
 
     const tempUserMessage: Message = {
       id: 'temp-user',
@@ -89,6 +89,15 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMessage]);
+
+    // ADD: Optimistic AI message placeholder
+    const tempAiMessage: Message = {
+      id: 'temp-ai',
+      role: 'assistant',
+      content: 'Generating reply...',
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempAiMessage]);
 
     try {
       const res = await fetch('/api/ai/generate', {
@@ -101,25 +110,41 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         }),
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to generate reply');
-      }
-
       const data = await res.json();
+
+      if (!res.ok) {
+        // ADD: Show specific error message from backend
+        const errorMsg = data.error || 'Failed to generate reply';
+        throw new Error(errorMsg);
+      }
       
       setMessages((prev) => {
-        const withoutTemp = prev.filter((m) => m.id !== 'temp-user');
+        const withoutTemp = prev.filter((m) => m.id !== 'temp-user' && m.id !== 'temp-ai');
         return [...withoutTemp, 
           { ...tempUserMessage, id: `user-${Date.now()}` },
           data.message
         ];
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      setMessages((prev) => prev.filter((m) => m.id !== 'temp-user'));
-      alert('Failed to generate reply. Please try again.');
+      
+      // ADD: Remove loading message
+      setMessages((prev) => prev.filter((m) => m.id !== 'temp-ai'));
+      
+      // ADD: Show user-friendly error
+      const errorMessage = error.message || 'Failed to generate reply. Please try again.';
+      alert(errorMessage);
+      
+      // ADD: Restore user message if it was removed
+      setMessages((prev) => {
+        const hasUserMsg = prev.some(m => m.id === 'temp-user');
+        if (!hasUserMsg) {
+          return [...prev, { ...tempUserMessage, id: `user-${Date.now()}` }];
+        }
+        return prev;
+      });
     } finally {
-      setSending(false);
+      setSending(false); // MODIFY: Always clear loading state
     }
   };
 
@@ -217,7 +242,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                   className={`max-w-[85%] sm:max-w-[70%] px-4 py-3 rounded-2xl ${
                     message.role === 'user'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
+                      : message.id === 'temp-ai' 
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 italic' // ADD: Loading state styling
+                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
                   }`}
                 >
                   {message.imageUrl && (
@@ -249,7 +276,8 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               />
               <button
                 onClick={removeImage}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                disabled={sending} // ADD: Disable during loading
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 disabled:opacity-50"
               >
                 ×
               </button>
@@ -265,8 +293,8 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={sending}
-              className="px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 text-xl"
+              disabled={sending} // MODIFY: Disable during loading
+              className="px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-xl"
             >
               📷
             </button>
@@ -275,16 +303,16 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder="Type your message..."
-              disabled={sending}
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+              placeholder={sending ? "Generating reply..." : "Type your message..."} // ADD: Dynamic placeholder
+              disabled={sending} // MODIFY: Disable during loading
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={sendMessage}
-              disabled={sending || (!inputValue.trim() && !selectedImage)}
+              disabled={sending || (!inputValue.trim() && !selectedImage)} // MODIFY: Disable during loading
               className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
             >
-              {sending ? 'Sending...' : 'Send'}
+              {sending ? 'Sending...' : 'Send'} {/* ADD: Dynamic button text */}
             </button>
           </div>
         </div>
