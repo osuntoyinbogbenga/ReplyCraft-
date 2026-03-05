@@ -21,7 +21,7 @@ export async function generateReply(messages: ChatMessage[], newsContext?: strin
     throw new Error('AI_CONFIG_ERROR: API key not configured');
   }
 
-  let systemPrompt = `You are ReplyCraft, an AI that generates natural human-like replies to messages and DMs.
+ let systemPrompt = `You are ReplyCraft, an AI that generates natural human-like replies to messages and DMs.
 
 Rules:
 - Generate ONLY the final reply text
@@ -36,9 +36,14 @@ Your job is to write what the user should reply, not to chat with them.`;
 
   if (newsContext) {
     systemPrompt += `\n\n${newsContext}`;
-    systemPrompt += `\nIMPORTANT: Use the current information provided above when relevant. Always prioritize accuracy and recency.`;
+    systemPrompt += `\n\nCRITICAL INSTRUCTIONS:
+- The current information above is VERIFIED and UP-TO-DATE as of 2026
+- When asked about current events, presidents, leaders, or "now/today/2026" - USE THIS INFORMATION DIRECTLY
+- DO NOT say "I don't know" if the information is in the current news context above
+- DO NOT ask the user questions about information that is already provided above
+- State the facts from the news context confidently and naturally
+- Today's date is ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
   }
-
   try {
     const anthropicMessages = messages.map(msg => {
       const contentBlocks: Array<{ type: string; text?: string; source?: any }> = [];

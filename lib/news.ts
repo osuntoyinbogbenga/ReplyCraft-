@@ -91,15 +91,7 @@ async function fetchRSSFeeds(query: string): Promise<NewsArticle[]> {
 }
 
 function needsCurrentInfo(query: string): boolean {
-  const currentInfoKeywords = [
-    'today', 'now', 'current', 'latest', 'recent', 'news',
-    'happening', 'update', 'what is', 'who is', 'where is',
-    'when', 'this week', 'this month', '2026', '2025',
-    'stock', 'price', 'weather', 'score', 'result'
-  ];
-
-  const lowerQuery = query.toLowerCase();
-  return currentInfoKeywords.some(keyword => lowerQuery.includes(keyword));
+  return true;
 }
 
 export async function getNewsContext(userMessage: string): Promise<string> {
